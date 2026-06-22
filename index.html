@@ -1,0 +1,827 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LifeFit - 통합 갓생 마스터 시스템 (찐 최종본)</title>
+    <!-- 프리미엄 폰트 -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@800&family=DungGeunMo&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
+    
+    <style>
+        :root {
+            --body-scale: 1; 
+            --skin-color: #ffe0bd;
+            --hair-color: #d4a373;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background-color: #121212; color: #ffffff; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow-x: hidden; font-family: 'Pretendard', sans-serif; }
+        
+        #app {
+            width: 100%; max-width: 480px; height: 100vh; background-color: #1e1e1e; position: relative;
+            overflow-y: auto; box-shadow: 0 0 20px rgba(0,0,0,0.5); display: flex; flex-direction: column;
+        }
+
+        .page { display: none; flex-direction: column; padding: 40px 24px; min-height: 100%; animation: fadeIn 0.4s ease-in-out; flex: 1; }
+        .page.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        h1 { font-size: 26px; margin-bottom: 8px; font-weight: 700; letter-spacing: -0.5px; }
+        p.desc { color: #aaaaaa; margin-bottom: 32px; font-size: 14px; line-height: 1.5; }
+        
+        input, select { width: 100%; padding: 14px; margin-bottom: 12px; border-radius: 12px; border: 1px solid #333; background-color: #2a2a2a; color: #fff; font-size: 14px; outline: none; transition: 0.2s; }
+        input[type=range] { padding: 0; background: transparent; border: none; }
+        input:focus, select:focus { border-color: #E0FF95; }
+        
+        .btn { width: 100%; padding: 18px; border-radius: 12px; border: none; font-size: 16px; font-weight: 700; cursor: pointer; margin-bottom: 12px; transition: all 0.2s; }
+        .btn-primary { background-color: #E0FF95; color: #121212; margin-top: auto; }
+        .btn-primary:hover { background-color: #c5e673; }
+        
+        /* 칩 선택형 UI */
+        .question-block { margin-bottom: 24px; background: #252525; padding: 16px; border-radius: 16px; border: 1px solid #333; }
+        .question-label { color: #E0FF95; font-size: 14px; font-weight: 700; margin-bottom: 12px; display: block; }
+        .chip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .chip { background-color: #1e1e1e; border: 1px solid #444; border-radius: 10px; padding: 12px 8px; text-align: center; font-size: 13px; color: #ccc; cursor: pointer; transition: all 0.2s ease; }
+        .chip.selected { border-color: #E0FF95; background-color: rgba(224, 255, 149, 0.1); color: #fff; font-weight: 700; }
+        .full-width { grid-column: span 2; }
+
+        /* ----- 스플래시 화면 ----- */
+        #splash { background: linear-gradient(135deg, #FFEB3B 0%, #4CAF50 100%); justify-content: center; align-items: center; }
+        .cloud-logo { position: relative; background: #ffffff; border-radius: 60px; padding: 30px 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); display: flex; justify-content: center; align-items: center; margin-bottom: 20px; z-index: 5; }
+        .cloud-logo::before, .cloud-logo::after { content: ''; position: absolute; background: #ffffff; border-radius: 50%; z-index: -1; }
+        .cloud-logo::before { width: 100px; height: 100px; top: -40px; left: 20px; }
+        .cloud-logo::after { width: 80px; height: 80px; top: -30px; right: 20px; }
+        .cloud-logo h1 { color: #2E7D32; font-family: 'Montserrat', sans-serif; font-size: 42px; margin: 0; letter-spacing: -1px; }
+
+        /* ----- 캐릭터 렌더링 엔진 ----- */
+        .character-viewer { width: 100%; height: 350px; background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%); border: 4px solid #444; border-radius: 12px; display: flex; justify-content: center; align-items: center; position: relative; overflow: hidden; margin-bottom: 24px; }
+        .character-stage { position: relative; width: 120px; height: 250px; display: flex; flex-direction: column; align-items: center; transform: scale(1.0); transform-origin: center;}
+        
+        .layer-hair-back { position: absolute; top: 15px; width: 130px; height: 180px; background: var(--hair-color); border-radius: 60px 60px 10px 10px; border: 3px solid #222; z-index: 1; transition: 0.3s;}
+        .character-stage.hair-long .layer-hair-back { height: 180px; border-radius: 60px 60px 10px 10px; top: 15px; }
+        .character-stage.hair-bob .layer-hair-back { height: 100px; border-radius: 60px 60px 40px 40px; top: 20px; width: 140px;}
+        .character-stage.hair-shortcut .layer-hair-back { height: 80px; border-radius: 60px; top: 25px; width: 110px;}
+        .character-stage.hair-bald .layer-hair-back { display: none; }
+        .character-stage.hair-pigtails .layer-hair-back { height: 90px; border-radius: 60px; top: 25px; }
+        .character-stage.hair-pigtails .layer-hair-back::before, .character-stage.hair-pigtails .layer-hair-back::after { content: ''; position: absolute; top: 30px; width: 45px; height: 110px; background: var(--hair-color); border: 3px solid #222; border-radius: 20px; z-index: -1; }
+        .character-stage.hair-pigtails .layer-hair-back::before { left: -30px; transform: rotate(25deg); }
+        .character-stage.hair-pigtails .layer-hair-back::after { right: -30px; transform: rotate(-25deg); }
+        .character-stage.hair-sprout .layer-hair-back { display: none; }
+        .character-stage.hair-sprout .layer-head::before { content: '🌱'; position: absolute; top: -35px; font-size: 30px; z-index: 10; }
+
+        .layer-head { position: absolute; top: 30px; width: 90px; height: 95px; background-color: var(--skin-color); border: 3px solid #222; border-radius: 45px 45px 40px 40px; z-index: 5; display: flex; flex-direction: column; align-items: center; }
+        .layer-hair-front { position: absolute; top: -5px; width: 110px; height: 50px; background: var(--hair-color); border-radius: 50px 50px 0 0; z-index: 6; border: 3px solid #222; border-bottom: none; transition: 0.3s;}
+        .layer-hair-front::after { content: ''; position: absolute; bottom: -20px; left: 10px; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 25px solid var(--hair-color); }
+        .layer-hair-front::before { content: ''; position: absolute; bottom: -25px; right: 15px; border-left: 20px solid transparent; border-right: 15px solid transparent; border-top: 30px solid var(--hair-color); }
+        .character-stage.hair-bald .layer-hair-front { display: none; }
+        .character-stage.hair-sprout .layer-hair-front { display: none; }
+
+        .face-features { margin-top: 40px; display: flex; flex-direction: column; align-items: center; width: 100%; position: relative; }
+        .eyes-container { display: flex; gap: 16px; position: relative; z-index: 7; }
+        .eye { width: 18px; height: 24px; background: linear-gradient(to bottom, #a0522d, #f4a460); border-radius: 50% 50% 40% 40%; position: relative; border-top: 4px solid #111; border-left: 2px solid #111; box-shadow: 0 -2px 0 #111; overflow: hidden; }
+        .pupil { position: absolute; bottom: 2px; left: 2px; width: 14px; height: 16px; background-color: #111; border-radius: 50%; }
+        .sparkle-1 { width: 7px; height: 7px; background: #fff; border-radius: 50%; position: absolute; top: 2px; left: 2px; }
+        .sparkle-2 { width: 4px; height: 4px; background: #fff; border-radius: 50%; position: absolute; bottom: 4px; right: 2px; }
+        .blush-container { position: absolute; top: 20px; width: 95%; display: flex; justify-content: space-between; padding: 0 1px; box-sizing: border-box; z-index: 6; }
+        .blush { width: 16px; height: 8px; background: rgba(255, 100, 100, 0.5); border-radius: 50%; filter: blur(1px); }
+        .nose { width: 3px; height: 3px; background: #d4a373; border-radius: 50%; margin-top: 3px; }
+        .mouth { width: 12px; height: 6px; border-bottom: 2px solid #a45a52; border-radius: 0 0 10px 10px; margin-top: 4px; }
+        
+        .dark-circle { position: absolute; bottom: -8px; left: -4px; width: 24px; height: 10px; background: rgba(70, 50, 70, 0.6); border-radius: 50%; filter: blur(2px); opacity: 0; transition: 0.3s; z-index: 6;}
+        .angry-mark { position: absolute; top: -25px; right: -10px; color: red; font-size: 20px; font-weight: bold; display: none; z-index: 8; text-shadow: 0 0 5px white; }
+        .sick-mark { position: absolute; top: -10px; left: -10px; display: none; z-index: 8; font-size: 20px; filter: drop-shadow(0 0 2px white); }
+        .dizzy-mark { position: absolute; top: -20px; display: none; z-index: 10; font-size: 24px; filter: drop-shadow(0 0 2px white); }
+
+        .layer-body-group { position: absolute; top: 120px; display: flex; flex-direction: column; align-items: center; z-index: 3; transition: transform 0.4s; transform: scaleX(var(--body-scale)); transform-origin: top center; }
+        .body-core { width: 50px; height: 75px; background-color: var(--skin-color); border: 3px solid #222; position: relative; }
+        .legs { display: flex; gap: 12px; margin-top: -3px; }
+        .leg { width: 16px; height: 55px; background-color: var(--skin-color); border: 3px solid #222; border-top: none; position: relative; }
+        .leg::after { content: ''; position: absolute; bottom: -3px; left: -4px; width: 24px; height: 14px; background-color: #333; border: 3px solid #222; border-radius: 6px 6px 2px 2px; }
+
+        .layer-clothes { position: absolute; top: -3px; left: -3px; width: 56px; height: 81px; z-index: 4; }
+        .layer-pants { position: absolute; left: -3px; width: 56px; height: 30px; z-index: 4; display: none; }
+        
+        .c-uniform { background: linear-gradient(to bottom, #fff 35%, #5d9b7a 35%); border: 3px solid #222; border-radius: 4px 4px 0 0; }
+        .c-uniform::after { content: '🎀'; position: absolute; top: 15px; left: 17px; font-size: 14px; }
+        .c-hoodie { background-color: #8fa3b8; border: 3px solid #222; border-radius: 10px 10px 0 0; height: 85px; }
+        .c-tracksuit { background: #2c3e50; border: 3px solid #222; }
+        .c-shortsleeve { background: #f1f2f6; border: 3px solid #222; height: 60px; border-bottom: none; }
+        .c-shortsleeve-pants { display: block; background: #34495e; border: 3px solid #222; border-top: none; top: 57px !important; }
+        .c-casual { background: #fff; border: 3px solid #222; height: 60px; border-bottom: none; }
+        .c-casual-pants { display: block; background: #3498db; border: 3px solid #222; border-top: none; top: 57px !important; }
+        .c-suit { background: #333; border: 3px solid #222; height: 81px; }
+        .c-suit::after { content: '👔'; position: absolute; top: 15px; left: 15px; font-size: 14px; }
+        .c-cyber { background: #2f3640; border: 3px solid #00d2d3; box-shadow: 0 0 10px #00d2d3; }
+        .c-hanbok { background: #fff; border: 3px solid #222; border-radius: 10px 10px 0 0; height: 50px; }
+        .c-hanbok::after { content:''; position:absolute; top:5px; left:15px; width: 20px; height:30px; border-left:4px solid #e74c3c; border-bottom:4px solid #e74c3c;}
+        .c-hanbok-pants { display: block; background: #e74c3c; border: 3px solid #222; height: 40px; top: 47px !important; border-radius: 20px 20px 0 0; width: 66px; left: -8px;}
+        .c-redbikini { background: transparent; border-color: transparent;}
+        .c-redbikini::before { content: ''; position: absolute; top: 20px; left: 5px; width: 40px; height: 15px; background: #e74c3c; border: 2px solid #222; border-radius: 10px;}
+        .c-redbikini-pants { display: block; background: transparent; border-color: transparent; top: 55px !important;}
+        .c-redbikini-pants::before { content: ''; position: absolute; top: 0; left: 10px; width: 30px; height: 15px; background: #e74c3c; border: 2px solid #222; border-radius: 0 0 15px 15px;}
+        .c-pajamas { background: #a29bfe; border: 3px solid #222; border-radius: 5px 5px 0 0; }
+        .c-pajamas::after { content: '🌙'; position: absolute; top: 15px; left: 15px; font-size: 14px; }
+        .c-croptop { background: #fd79a8; border: 3px solid #222; height: 45px; border-bottom: none; border-radius: 10px 10px 0 0; }
+        .c-croptop-pants { display: block; background: #0984e3; border: 3px solid #222; height: 40px; top: 42px !important; }
+
+        /* 공통 런처 및 오버레이 */
+        .app-launcher { position: absolute; top: 90px; right: 20px; display: flex; flex-direction: column; gap: 12px; z-index: 30; }
+        .app-icon-btn { width: 45px; height: 45px; border-radius: 50%; background: rgba(30,30,30,0.9); border: 2px solid #E0FF95; display: flex; justify-content: center; align-items: center; font-size: 20px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .system-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #1e1e1e; z-index: 100; display: none; flex-direction: column; padding: 24px; overflow-y: auto; }
+        .sys-close-btn { position: absolute; top: 20px; right: 24px; font-size: 24px; cursor: pointer; color: #aaa; }
+
+        .shop-panel { flex: 1; background: #2a2a35; border: 2px solid #444; border-radius: 12px; padding: 16px; overflow-y: auto; max-height: 250px; margin-bottom:16px;}
+        .grid-header { font-size: 13px; color: #aaa; margin: 15px 0 8px 0; border-left: 3px solid #E0FF95; padding-left: 6px; }
+        .item-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .item { background: #383847; border: 1px solid #555; border-radius: 6px; padding: 10px 4px; text-align: center; cursor: pointer; font-size: 11px; color: #ddd; transition: 0.2s; }
+        .item:hover, .item.selected { background: #E0FF95; color: #111; font-weight: bold; }
+        .item.premium { border-color: #f1c40f; color: #f1c40f; font-weight: bold; }
+        
+        .gacha-box { background: linear-gradient(45deg, #FF9800, #E91E63); padding: 15px; border-radius: 12px; text-align: center; margin-top: 20px; cursor: pointer; color: #fff; font-weight: bold; font-family: 'DungGeunMo', sans-serif; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: 0.2s; }
+        .gacha-box:active { transform: scale(0.95); }
+
+        /* 결과 분석 표 */
+        .result-section { background: #2a2a2a; border-radius: 12px; overflow: hidden; margin-bottom: 20px; border: 1px solid #333; }
+        .result-header { background: #1a1a1a; padding: 12px 16px; font-weight: 700; color: #E0FF95; font-size: 14px; border-bottom: 1px solid #333;}
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #333; line-height: 1.5; }
+        th { color: #aaa; background: #252525; width: 30%;}
+        td { color: #ddd; }
+        
+        .youtube-list { padding: 12px; display: flex; flex-direction: column; gap: 8px; background: #2a2a2a;}
+        .youtube-item { background: #222; border-radius: 8px; padding: 10px; display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; border: 1px solid #444; }
+        .yt-icon { font-size: 20px; color: #ff0000; }
+        .yt-title { font-size: 12px; font-weight: 700; color: #fff; }
+        .yt-channel { font-size: 11px; color: #ffb86c; margin-top: 4px; }
+
+        /* ----- Screen 6: 거실 화면 & 배경 텔레포트 (정확한 파일명 연동) ----- */
+        #living-room { padding: 0; position: relative; }
+        #bg-container.character-viewer {
+            width: 100%; height: 100%; margin-bottom: 0; border: none; border-radius: 0;
+            background-image: url('background.png'); /* 지시하신 파일명 정확히 반영 */
+            background-size: 300% 200%; background-position: 0% 100%;
+            transition: background-position 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        
+        .live-wallet-header { position: absolute; top: 20px; left: 20px; right: 20px; background: rgba(0,0,0,0.85); padding: 12px 16px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #444; z-index: 30; }
+        .live-coin { font-family: 'DungGeunMo', sans-serif; font-size: 18px; color: #FFD700; }
+        
+        .teleport-panel { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: rgba(30, 30, 36, 0.95); border: 4px solid #5a5a72; border-radius: 12px; padding: 12px 20px; display: flex; align-items: center; gap: 12px; box-shadow: 8px 8px 0px rgba(0,0,0,0.6); z-index: 20; }
+        .teleport-panel select { font-family: 'DungGeunMo', sans-serif; font-size: 13px; padding: 6px 10px; background: #2a2a35; color: #fff; border: 2px solid #555; border-radius: 4px; margin: 0; width: auto; }
+        .teleport-btn { font-family: 'DungGeunMo', sans-serif; background: #bd93f9; color: white; border: 2px solid #111; padding: 8px 14px; font-size: 14px; border-radius: 4px; cursor: pointer; }
+
+        /* 커뮤니티 댓글 */
+        .comm-tab-menu { display: flex; background: #252525; border-radius: 8px; margin: 15px 0; overflow: hidden; }
+        .comm-tab-btn { flex: 1; padding: 12px 0; text-align: center; font-size: 13px; font-weight: bold; color: #888; cursor: pointer; }
+        .comm-tab-btn.active { color: #E0FF95; background: #2a2a2a; }
+        .comm-panel { display: none; } .comm-panel.active { display: block; }
+        .post-item { background: #252525; border-radius: 10px; padding: 14px; margin-bottom: 10px; border: 1px solid #333; }
+        .post-header { display: flex; justify-content: space-between; font-size: 11px; color: #888; margin-bottom: 6px; }
+        .post-tag { background: #3a3a3a; padding: 2px 6px; border-radius: 4px; color: #ffb86c; }
+        .comment-section { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #444; }
+        .comment-item { font-size: 12px; color: #ccc; margin-bottom: 6px; padding-left: 8px; border-left: 2px solid #555; word-break: break-all;}
+        .comment-input-wrap { display: flex; gap: 6px; margin-top: 8px; }
+        .comment-input-wrap input { flex: 1; padding: 10px; font-size: 12px; margin: 0; background: #1a1a1a; border: 1px solid #444; border-radius: 6px; }
+        .comment-input-wrap button { background: #bd93f9; color: white; border: none; padding: 0 12px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; }
+
+        /* 🚨 겹침 현상 완벽 방지: position fixed 최상단 모달 */
+        #extreme-warning {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.96); display: none; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 999999;
+            color: white; padding: 24px; box-sizing: border-box; text-align: center;
+        }
+        #extreme-warning h1 { color: #FF0000; font-size: 38px; margin-bottom: 20px; text-shadow: 0 0 15px #ff0000; animation: shake 0.4s infinite; font-family: 'DungGeunMo', sans-serif; }
+        #extreme-warning p { font-size: 16px; line-height: 1.6; margin-bottom: 30px; font-weight: bold; }
+        .btn-safe { background-color: #4CAF50; color: white; padding: 16px; font-size: 16px; font-weight: bold; border-radius: 10px; width: 100%; max-width: 400px; border: none; cursor: pointer; margin-bottom: 12px; }
+        .btn-ghost { background-color: transparent; border: 2px solid #555; color: #888; padding: 10px; font-size: 13px; border-radius: 10px; width: 100%; max-width: 400px; border: none; cursor: pointer; }
+
+        @keyframes shake { 0% { transform: translate(1px, 1px) rotate(0deg); } 20% { transform: translate(-2px, 0px) rotate(1deg); } 40% { transform: translate(1px, -1px) rotate(1deg); } 60% { transform: translate(-1px, 1px) rotate(0deg); } 100% { transform: translate(1px, 1px) rotate(0deg); } }
+    </style>
+</head>
+<body>
+
+<!-- BGM 플레이어 (Lofi Study) -->
+<audio id="app-bgm" loop>
+    <source src="https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=lofi-study-112191.mp3" type="audio/mpeg">
+</audio>
+
+<div id="app">
+    
+    <!-- 스플래시 화면 -->
+    <div id="splash" class="page active">
+        <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <div class="cloud-logo"><h1>LifeFit</h1></div>
+            <p style="color: #111; font-size: 16px; font-weight: bold;">건강부터 성적까지, 완벽한 갓생 메이커</p>
+        </div>
+        <button class="btn btn-primary" style="background:#2E7D32; color:white; border: 2px solid #fff;" onclick="initApp()">시작하기</button>
+    </div>
+
+    <!-- 로그인 -->
+    <div id="login" class="page">
+        <h1>로그인</h1>
+        <p class="desc">라이프핏에 오신 것을 환영합니다.</p>
+        <input type="text" id="login-id" placeholder="아이디 (이메일)">
+        <input type="password" id="login-pw" placeholder="비밀번호">
+        <button class="btn btn-primary" onclick="tryLogin()">로그인</button>
+    </div>
+
+    <!-- 프로필 및 5등급제 선택 -->
+    <div id="profile-setup" class="page">
+        <h1 id="profile-title">기본 스펙 입력</h1>
+        <p class="desc">정확한 분석을 위해 현실 팩트를 기재하세요.</p>
+        
+        <label class="question-label">불릴 이름</label>
+        <input type="text" id="nickname" placeholder="예: 고지식">
+        
+        <div style="display:flex; gap:10px;">
+            <div style="flex: 1;"><label class="question-label">키 (cm)</label><input type="number" id="height" placeholder="160"></div>
+            <div style="flex: 1;"><label class="question-label">몸무게 (kg)</label><input type="number" id="weight" placeholder="50"></div>
+        </div>
+
+        <div class="question-block" style="background:transparent; border:none; padding:0;">
+            <span class="question-label">소속 고등학교 유형 (세분화)</span>
+            <select id="school-type">
+                <option value="normal">일반고</option>
+                <option value="jasa">자율형사립고 (자사고)</option>
+                <option value="foreign">외고 / 국제고</option>
+                <option value="special">특성화고</option>
+                <option value="meister">마이스터고</option>
+            </select>
+            
+            <span class="question-label">현재 평균 내신 등급 (5등급제 기준)</span>
+            <select id="grade-tier">
+                <option value="1">1등급 (상위 10% 이내)</option>
+                <option value="2">2등급 (상위 34% 이내)</option>
+                <option value="3">3등급 (상위 66% 이내)</option>
+                <option value="4">4등급 (상위 90% 이내)</option>
+                <option value="5">5등급 (하위 10%)</option>
+            </select>
+        </div>
+
+        <button class="btn btn-primary" onclick="saveProfileAndGoCustom()">다음 단계 (아바타 세팅)</button>
+    </div>
+
+    <!-- 온보딩 초기 커스텀 -->
+    <div id="custom-wardrobe" class="page">
+        <h1>초기 아바타 세팅</h1>
+        <p class="desc">무료 아이템을 골라보세요. 유료 상점은 나중에 열립니다.</p>
+        <div class="character-viewer" style="height:280px;">
+            <div class="character-stage hair-long" id="wardrobe-character-viewer"></div>
+        </div>
+        <div class="shop-panel" style="margin-bottom:0; max-height:220px;">
+            <div class="grid-header">머리카락 종류</div>
+            <div class="item-grid">
+                <div class="item" onclick="changeHairStyle('long')">장발</div>
+                <div class="item" onclick="changeHairStyle('bob')">단발</div>
+                <div class="item" onclick="changeHairStyle('shortcut')">숏컷</div>
+                <div class="item" onclick="changeHairStyle('pigtails')">양갈래</div>
+                <div class="item" onclick="changeHairStyle('bald')">대머리</div>
+            </div>
+            <div class="grid-header">머리색</div>
+            <div class="item-grid">
+                <div class="item" style="background:#d4a373;color:#111;" onclick="changeHairColor('#d4a373')">갈색</div>
+                <div class="item" style="background:#222;color:#fff;" onclick="changeHairColor('#222')">검정색</div>
+                <div class="item" style="background:#f1c40f;color:#111;" onclick="changeHairColor('#f1c40f')">노란색</div>
+                <div class="item" style="background:#e74c3c;color:#fff;" onclick="changeHairColor('#e74c3c')">빨간색</div>
+            </div>
+            <div class="grid-header">기본 의상</div>
+            <div class="item-grid">
+                <div class="item" onclick="equip('c-uniform')">교복</div>
+                <div class="item" onclick="equip('c-shortsleeve')">반팔</div>
+                <div class="item" onclick="equip('c-tracksuit')">추리닝</div>
+                <div class="item" onclick="equip('c-hoodie')">후드티</div>
+            </div>
+        </div>
+        <button class="btn btn-primary" style="margin-top:10px;" onclick="navTo('condition-survey')">다음 단계 (컨디션 진단)</button>
+    </div>
+
+    <!-- MBTI 컨디션 진단 -->
+    <div id="condition-survey" class="page">
+        <h1>나의 현재 컨디션</h1>
+        <p class="desc">MBTI처럼 5가지 질문을 통해 현재 상태를 진단합니다.</p>
+        
+        <div class="question-block">
+            <span class="question-label">Q1. 피로도?</span>
+            <div class="chip-grid"><div class="chip" onclick="selectChip(this)" data-score="10">쌩쌩함</div><div class="chip" onclick="selectChip(this)" data-score="0">조금 피곤</div><div class="chip full-width" onclick="selectChip(this)" data-score="-10">완전 방전됨</div></div>
+        </div>
+        <div class="question-block">
+            <span class="question-label">Q2. 수면 시간?</span>
+            <div class="chip-grid"><div class="chip" onclick="selectChip(this)" data-score="10">7시간 이상</div><div class="chip" onclick="selectChip(this)" data-score="5">5~7시간</div><div class="chip full-width" onclick="selectChip(this)" data-score="-10">4시간 이하</div></div>
+        </div>
+        <div class="question-block">
+            <span class="question-label">Q3. 체력?</span>
+            <div class="chip-grid"><div class="chip" onclick="selectChip(this)" data-score="10">운동 끄떡없음</div><div class="chip" onclick="selectChip(this)" data-score="0">계단 오르면 헉헉</div><div class="chip full-width" onclick="selectChip(this)" data-score="-10">숨쉬기도 힘듦</div></div>
+        </div>
+        <div class="question-block">
+            <span class="question-label">Q4. 식사 여부?</span>
+            <div class="chip-grid"><div class="chip" onclick="selectChip(this)" data-score="10">든든하게 먹음</div><div class="chip" onclick="selectChip(this)" data-score="0">대충 때움</div><div class="chip full-width" onclick="selectChip(this)" data-score="-10">굶음</div></div>
+        </div>
+        <div class="question-block">
+            <span class="question-label">Q5. 오늘 공부 시간?</span>
+            <div class="chip-grid"><div class="chip" onclick="selectChip(this)" data-score="20">5시간 이상</div><div class="chip" onclick="selectChip(this)" data-score="10">2~4시간</div><div class="chip full-width" onclick="selectChip(this)" data-score="0">아직 안함</div></div>
+        </div>
+        <button class="btn btn-primary" onclick="calculateSurveyAndGo()">진단 리포트 보기</button>
+    </div>
+
+    <!-- 분석 리포트 -->
+    <div id="analysis-report" class="page">
+        <h1>상태 진단 및 분석</h1>
+        <div class="result-section">
+            <div class="result-header">🩺 피지컬 & 식단 리포트</div>
+            <table>
+                <tbody>
+                    <tr><th>BMI 판정</th><td id="res-bmi" style="color:#E0FF95; font-weight:bold;">-</td></tr>
+                    <tr><th>추천 식단</th><td id="res-diet">-</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="result-section" style="border-color: #552222;">
+            <div class="result-header" style="color: #ff6b6b; border-bottom-color: #552222;">🚨 나의 학업 팩트체크</div>
+            <table>
+                <tbody>
+                    <tr><th>위치</th><td id="res-aca-status"><b>-</b></td></tr>
+                    <tr><th>진단</th><td id="res-aca-fact" style="color:#ffcccc;">-</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <button class="btn btn-primary" onclick="prepareLivingRoomAndGo()" style="background-color: #bd93f9; color: white;">확인 완료, 거실로 이동</button>
+    </div>
+
+    <!-- 거실 (메인 텔레포트 공간) -->
+    <div id="living-room" class="page">
+        <div class="live-wallet-header">
+            <div style="font-size:13px; font-weight:bold;" id="live-user-title">유저님 갓생중</div>
+            <div class="live-coin" id="live-coin-text">50 🪙</div>
+        </div>
+
+        <div class="app-launcher">
+            <div class="app-icon-btn" onclick="openSystemOverlay('sys-dashboard')" title="진단표">📊</div>
+            <div class="app-icon-btn" onclick="openSystemOverlay('sys-shop')" title="프리미엄 샵">👕</div>
+            <div class="app-icon-btn" onclick="openSystemOverlay('sys-finance')" title="스카 락다운">✍️</div>
+            <div class="app-icon-btn" onclick="openSystemOverlay('sys-square')" title="학교 커뮤니티">🏫</div>
+            <div class="app-icon-btn" onclick="openSystemOverlay('sys-settings')" title="설정">⚙️</div>
+        </div>
+
+        <div class="character-viewer" id="bg-container" style="height: 100vh; border:none; border-radius:0;">
+            <div class="character-stage" id="living-character-viewer"></div>
+            
+            <div class="teleport-panel">
+                <select id="location-select">
+                    <option value="home">거실</option><option value="gym">헬스장</option><option value="restaurant">식당</option>
+                    <option value="hospital">병원</option><option value="school">학교</option><option value="studycafe">스터디카페</option>
+                </select>
+                <button class="teleport-btn" onclick="teleport()">이동</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 모달: 상태 진단표 (신체정보 갱신 기능 탑재) -->
+    <div class="system-overlay" id="sys-dashboard">
+        <div class="sys-close-btn" onclick="closeSystemOverlay('sys-dashboard')">✕</div>
+        <h2 style="font-size:22px; color:#E0FF95; margin-bottom:15px;">📊 종합 진단 리포트</h2>
+        
+        <div class="result-section" style="margin-bottom:15px;">
+            <div class="result-header">⚖️ 신체 정보 갱신 (키/몸무게 변경)</div>
+            <div style="padding:15px; display:flex; gap:10px;">
+                <input type="number" id="dash-update-height" placeholder="키(cm)" style="margin:0;">
+                <input type="number" id="dash-update-weight" placeholder="몸무게(kg)" style="margin:0;">
+                <button class="btn" style="background:#bd93f9; color:#fff; width:auto; padding:0 15px; margin:0;" onclick="updatePhysicalInfo()">적용</button>
+            </div>
+        </div>
+
+        <div class="result-section">
+            <div class="result-header">🩺 피지컬 & 식단 리포트</div>
+            <table>
+                <tbody>
+                    <tr><th>BMI 판정</th><td id="dash-bmi" style="color:#E0FF95; font-weight:bold;">-</td></tr>
+                    <tr><th>추천 식단</th><td id="dash-diet">-</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="result-section">
+            <div class="result-header">🔥 유튜브 추천</div>
+            <div class="youtube-list">
+                <a href="https://www.youtube.com/watch?v=02fG9N_H05M" target="_blank" class="youtube-item">
+                    <span class="yt-icon">📺</span><div><div class="yt-title">5분 전신 스트레칭</div><div class="yt-channel">피지컬갤러리</div></div>
+                </a>
+                <a href="https://www.youtube.com/watch?v=kS-LzOIO9b4" target="_blank" class="youtube-item">
+                    <span class="yt-icon">📺</span><div><div class="yt-title">벼락치기 백색소음</div><div class="yt-channel">때껄룩 TAKE A LOOK</div></div>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 모달: 프리미엄 상점 & 옷장 -->
+    <div class="system-overlay" id="sys-shop">
+        <div class="sys-close-btn" onclick="closeSystemOverlay('sys-shop')">✕</div>
+        <h2 style="font-size:22px; color:#bd93f9; margin-bottom:15px;">👕 프리미엄 뷰티샵</h2>
+
+        <div class="shop-panel" style="max-height: none;">
+            <!-- 가챠 -->
+            <div class="gacha-box" onclick="drawRandomClothes()">
+                🎁 프리미엄 랜덤 뽑기 (100🪙)<br><span style="font-size:11px; font-weight:normal;">중복 시 50코인 페이백</span>
+            </div>
+
+            <div class="grid-header">무료 보유 (헤어/의상)</div>
+            <div class="item-grid" style="margin-bottom:10px;">
+                <div class="item" onclick="changeHairStyle('long')">장발</div><div class="item" onclick="changeHairStyle('bob')">단발</div>
+                <div class="item" onclick="changeHairStyle('shortcut')">숏컷</div><div class="item" onclick="changeHairStyle('pigtails')">양갈래</div><div class="item" onclick="changeHairStyle('bald')">대머리</div>
+            </div>
+            <div class="item-grid" id="inventory-grid"></div>
+            
+            <div class="grid-header">무료 염색약</div>
+            <div class="item-grid" style="margin-bottom:15px;">
+                <div class="item" style="background:#d4a373;color:#111;" onclick="changeHairColor('#d4a373')">갈색</div><div class="item" style="background:#222;color:#fff;" onclick="changeHairColor('#222')">검정색</div>
+                <div class="item" style="background:#f1c40f;color:#111;" onclick="changeHairColor('#f1c40f')">노란색</div><div class="item" style="background:#e74c3c;color:#fff;" onclick="changeHairColor('#e74c3c')">빨간색</div>
+            </div>
+
+            <!-- 유료 컨텐츠 -->
+            <div class="grid-header" style="border-color:#f1c40f; color:#f1c40f;">프리미엄 뷰티 (유료 확정 구매)</div>
+            <div class="item-grid" style="margin-bottom:10px;">
+                <!-- 피드백: 무지개와 새싹머리 유료화 -->
+                <div class="item premium" style="background:linear-gradient(to right, red, orange, yellow, green, blue, purple);color:#fff;" onclick="buyFeature('color', 'linear-gradient(to right, red, orange, yellow, green, blue, purple)', '무지개 염색', 200)">무지개 염색 (200🪙)</div>
+                <div class="item premium" onclick="buyFeature('hair', 'sprout', '🌱 새싹머리', 150)">🌱 새싹머리 (150🪙)</div>
+            </div>
+            <div class="item-grid">
+                <div class="item premium" onclick="buyFeature('clothes', 'c-suit', '👔 정장', 200)">👔 정장 (200)</div>
+                <div class="item premium" onclick="buyFeature('clothes', 'c-cyber', '💎 사이버', 300)">💎 사이버 (300)</div>
+                <div class="item premium" onclick="buyFeature('clothes', 'c-hanbok', '🌸 한복', 400)">🌸 한복 (400)</div>
+                <div class="item premium" onclick="buyFeature('clothes', 'c-redbikini', '👙 레드비키니', 500)">👙 레드비키니 (500)</div>
+                <div class="item premium" onclick="buyFeature('clothes', 'c-pajamas', '🌙 파자마', 250)">🌙 파자마 (250)</div>
+                <div class="item premium" onclick="buyFeature('clothes', 'c-croptop', '👗 크롭티', 200)">👗 크롭티 (200)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 모달: 스터디 락다운 (복구 완료) -->
+    <div class="system-overlay" id="sys-finance">
+        <div class="sys-close-btn" onclick="closeSystemOverlay('sys-finance')">✕</div>
+        <h2 style="font-size:22px; color:#E0FF95; margin-bottom:5px;">✍️ 스카 강제 고정 락다운</h2>
+        <p style="font-size:12px; color:#aaa; margin-bottom:15px;">이탈 시 돈이 사라집니다. 목표 달성 시 돈을 드립니다.</p>
+
+        <div style="background:linear-gradient(135deg,#FFD700,#F57F17); color:#fff; padding:20px; border-radius:15px; text-align:center; margin-bottom:15px;">
+            <p style="font-size:12px; font-weight:bold;">보유 코인</p><h1 id="modal-coin-display" style="font-size:36px;">50 🪙</h1>
+        </div>
+
+        <!-- 목표 (O/X) -->
+        <div class="question-block" style="padding:16px;">
+            <h4 style="color:#fff; font-size:14px;">🎯 오늘의 목표 수립</h4>
+            <div style="display:flex; gap:8px; margin-top:10px;">
+                <input type="text" id="goal-input" placeholder="예: 영단어 50개 암기" style="margin:0;">
+                <button class="btn" style="width:auto; padding:0 15px; margin:0; background:#E0FF95; color:#000;" onclick="addGoal()">추가</button>
+            </div>
+            <ul id="goal-list" style="list-style:none; padding:0; margin-top:10px;"></ul>
+        </div>
+
+        <!-- 락다운 타이머 설정 및 입실 -->
+        <div class="question-block" style="padding:16px; margin-bottom:15px;">
+            <h4 style="color:#fff; font-size:14px;">⏱️ 강제 자습 시간 락다운</h4>
+            <div style="display:flex; gap:10px; margin-top:10px;"><input type="time" id="time-start" style="margin:0;"><input type="time" id="time-end" style="margin:0;"></div>
+            <button class="btn" style="background:#2196F3; color:#fff; padding:12px; margin-top:10px; margin-bottom:0;" onclick="saveTimeSettings()">시간 등록</button>
+            <div id="timer-display" style="color:#F44336; font-weight:bold; text-align:center; margin-top:10px; display:none;">🚨 이탈 감지! 돈 사라지는 중: <span id="time-count">0</span>초 경과</div>
+            <div id="penalty-alert-box" style="display:none; background:#B71C1C; color:#fff; padding:10px; text-align:center; border-radius:8px; margin-top:10px; font-weight:bold;">💸 패널티! 10 코인 차감됨!</div>
+        </div>
+
+        <div class="question-block" style="padding:16px;">
+            <button class="btn" id="btn-in" style="background:#4CAF50; color:#fff;" onclick="checkInStudyCafe()">스카 입실</button>
+            <button class="btn" id="btn-out" style="background:#F44336; color:#fff; display:none;" onclick="attemptCheckOut()">스카 퇴실</button>
+        </div>
+    </div>
+
+    <!-- 모달: 커뮤니티 -->
+    <div class="system-overlay" id="sys-square">
+        <div class="sys-close-btn" onclick="closeSystemOverlay('sys-square')">✕</div>
+        <h2 style="font-size:22px; color:#bd93f9; margin-bottom:15px;">🏫 LifeFit 스퀘어</h2>
+        <div class="comm-tab-menu"><div class="comm-tab-btn active" onclick="switchCommTab('free')">자유</div><div class="comm-tab-btn" onclick="switchCommTab('school')">우리 학교</div><div class="comm-tab-btn" onclick="switchCommTab('exam')">입시</div></div>
+        
+        <div id="comm-free" class="comm-panel active">
+            <div class="question-block" style="padding:12px;"><textarea id="input-free" style="width:100%; height:60px; background:#1e1e1e; border:1px solid #444; border-radius:6px; color:#fff; padding:10px; resize:none;" placeholder="소통하세요."></textarea>
+                <div style="display:flex; justify-content:space-between; margin-top:5px;"><label style="font-size:12px; color:#aaa;"><input type="checkbox" id="anon-free" checked> 익명</label><button style="background:#E0FF95; border:none; padding:6px 12px; border-radius:6px; font-weight:bold; cursor:pointer;" onclick="addPost('free')">올리기</button></div>
+            </div><div id="feed-free"></div>
+        </div>
+        <div id="comm-school" class="comm-panel">
+            <div class="question-block" style="padding:12px;"><p style="font-size:12px; color:#E0FF95; margin-bottom:6px;">🏫 조/중/석식 검색</p>
+                <div style="display:flex; gap:6px;"><input type="text" id="search-name" placeholder="학교 공식 이름 입력" style="margin-bottom:0; padding:10px;"><button style="background:#bd93f9; border:none; color:#fff; padding:0 12px; border-radius:10px; font-weight:bold;" onclick="searchSchoolAndRealMeal()">검색</button></div>
+            </div>
+            <div id="live-meal-box" style="background:#1e1e1e; padding:15px; border-radius:10px; border:1px dashed #E0FF95; margin-bottom:15px; display:none; font-size:13px;"></div>
+            <div id="school-main-feed" style="display:none;"><div class="question-block" style="padding:12px;"><textarea id="input-school" style="width:100%; height:60px; background:#1e1e1e; border:1px solid #444; border-radius:6px; color:#fff; padding:10px; resize:none;" placeholder="학교 전용 소통"></textarea>
+                <div style="display:flex; justify-content:space-between; margin-top:5px;"><label style="font-size:12px; color:#aaa;"><input type="checkbox" id="anon-school" checked> 익명</label><button style="background:#E0FF95; border:none; padding:6px 12px; border-radius:6px; font-weight:bold;" onclick="addPost('school')">등록</button></div>
+            </div><div id="feed-school"></div></div>
+        </div>
+        <div id="comm-exam" class="comm-panel">
+            <div class="question-block" style="padding:12px;"><textarea id="input-exam" style="width:100%; height:60px; background:#1e1e1e; border:1px solid #444; border-radius:6px; color:#fff; padding:10px; resize:none;" placeholder="입시 정보 공유"></textarea>
+                <div style="display:flex; justify-content:space-between; margin-top:5px;"><label style="font-size:12px; color:#aaa;"><input type="checkbox" id="anon-exam"> 익명</label><button style="background:#E0FF95; border:none; padding:6px 12px; border-radius:6px; font-weight:bold;" onclick="addPost('exam')">공유</button></div>
+            </div><div id="feed-exam"></div>
+        </div>
+    </div>
+
+    <!-- 모달: 설정창 -->
+    <div class="system-overlay" id="sys-settings">
+        <div class="sys-close-btn" onclick="closeSystemOverlay('sys-settings')">✕</div>
+        <h2 style="font-size:22px; color:#fff; margin-bottom:20px;">⚙️ 환경 설정</h2>
+        <div style="display:flex; justify-content:space-between; align-items:center; background:#2a2a2a; padding:20px; border-radius:12px; margin-bottom:20px;">
+            <div style="display:flex; flex-direction:column; align-items:center;"><div style="width:60px; height:60px; border-radius:50%; background:#444; border:2px solid #E0FF95; display:flex; justify-content:center; align-items:center; font-size:24px;">👤</div><span id="set-name" style="margin-top:8px; font-weight:bold; font-size:14px;">-</span></div>
+            <div style="text-align:right;"><div id="set-phys" style="font-size:13px; color:#ccc;">- cm / - kg</div><div id="set-bmi" style="font-size:16px; color:#E0FF95; font-weight:bold; margin-top:4px;">-</div></div>
+        </div>
+        <div style="background:#2a2a2a; padding:20px; border-radius:12px; margin-bottom:20px;">
+            <label style="font-size:14px; font-weight:bold; margin-bottom:10px; display:block;">🎵 집중력 향상 BGM 볼륨 (Lofi)</label>
+            <input type="range" id="bgm-volume" min="0" max="1" step="0.1" value="0.5" style="width:100%;" onchange="document.getElementById('app-bgm').volume = this.value; document.getElementById('app-bgm').play();">
+        </div>
+        <button class="btn" style="background:#F44336; color:#fff; margin-top:auto;" onclick="logout()">로그아웃</button>
+    </div>
+
+    <!-- 🚨 최상단 고정 마라맛 경고창 -->
+    <div id="extreme-warning">
+        <h1>🚨 경 고 🚨</h1>
+        <p id="extreme-msg"></p>
+        <button id="extreme-btn-safe" class="btn-safe">아니요, 조심하겠습니다.</button>
+        <button id="extreme-btn-danger" class="btn-ghost">네, 패널티를 받겠습니다.</button>
+    </div>
+</div>
+
+<script>
+    let ud = {
+        isLoggedIn: false, nickname: "", height: 160, weight: 50, school: "normal", grade: "1",
+        hair: "long", hairColor: "#d4a373", clothes: "c-uniform", condition: "쌩쌩", coins: 50, score: 0,
+        unlockedClothes: ['c-uniform', 'c-shortsleeve', 'c-tracksuit', 'c-hoodie', 'c-casual'],
+        unlockedHairs: ['long', 'bob', 'shortcut', 'pigtails', 'bald'],
+        unlockedColors: ['#d4a373', '#222', '#f1c40f', '#e74c3c'], lastUpdate: 0
+    };
+
+    function loadData() {
+        const d = localStorage.getItem('lifefit_user_data');
+        if(d) {
+            ud = JSON.parse(d);
+            if(!ud.unlockedClothes) ud.unlockedClothes = ['c-uniform', 'c-shortsleeve', 'c-tracksuit', 'c-hoodie', 'c-casual'];
+            if(!ud.unlockedHairs) ud.unlockedHairs = ['long', 'bob', 'shortcut', 'pigtails', 'bald'];
+            if(!ud.unlockedColors) ud.unlockedColors = ['#d4a373', '#222', '#f1c40f', '#e74c3c'];
+            return true;
+        }
+        return false;
+    }
+    function saveData() { localStorage.setItem('lifefit_user_data', JSON.stringify(ud)); }
+
+    function initApp() {
+        document.getElementById('app-bgm').play().catch(()=>{}); // BGM 재생
+        if(loadData() && ud.isLoggedIn) {
+            const daysPassed = (Date.now() - ud.lastUpdate) / (1000 * 60 * 60 * 24);
+            if (daysPassed >= 30) {
+                alert("⏰ 신체정보를 업데이트한 지 한 달(30일)이 지났습니다! 정확한 분석을 위해 갱신해 주세요.");
+                document.getElementById('profile-title').innerText = "월간 신체정보 갱신";
+                document.getElementById('nickname').value = ud.nickname;
+                navTo('profile-setup');
+            } else {
+                syncToCharacterViewer(); navTo('living-room');
+            }
+        } else { navTo('login'); }
+    }
+
+    function tryLogin() {
+        const i=document.getElementById('login-id').value, p=document.getElementById('login-pw').value;
+        if(!i||!p) return alert("❌ 아이디/비번을 입력하세요.");
+        ud.isLoggedIn = true; saveData(); navTo('profile-setup');
+    }
+    function logout() { localStorage.removeItem('lifefit_user_data'); location.reload(); }
+    
+    function navTo(id) { document.querySelectorAll('.page').forEach(p=>p.classList.remove('active')); document.getElementById(id).classList.add('active'); document.getElementById('app').scrollTop = 0; }
+    function openSystemOverlay(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeSystemOverlay(id) { document.getElementById(id).style.display = 'none'; }
+    function selectChip(el) { el.closest('.question-block').querySelectorAll('.chip').forEach(c=>c.classList.remove('selected')); el.classList.add('selected'); }
+    function selectCondition(element, conditionKey) { document.querySelectorAll('.condition-card').forEach(c => c.classList.remove('selected')); element.classList.add('selected'); ud.condition = conditionKey; }
+
+    let pendingAction = null;
+    function showExtremeWarning(msg, sTxt, dTxt, onProceed) { document.getElementById('extreme-msg').innerHTML = msg; document.getElementById('extreme-btn-safe').innerText = sTxt; document.getElementById('extreme-btn-danger').innerText = dTxt; pendingAction = onProceed; document.getElementById('extreme-warning').style.display = 'flex'; }
+    document.getElementById('extreme-btn-safe').onclick = () => { document.getElementById('extreme-warning').style.display = 'none'; pendingAction = null; };
+    document.getElementById('extreme-btn-danger').onclick = () => { document.getElementById('extreme-warning').style.display = 'none'; if(pendingAction) pendingAction(); };
+
+    function syncGlobalWalletUI() {
+        document.getElementById('live-coin-text').innerText = ud.coins + " 🪙"; document.getElementById('modal-coin-display').innerText = ud.coins + " 🪙";
+        const lv = document.getElementById('living-room'); if(ud.coins < 0) lv.style.backgroundColor = '#4A1519'; else lv.style.backgroundColor = '#1e1e1e'; saveData();
+    }
+
+    function generateCharacterBody() {
+        return `<div class="layer-hair-back"></div><div class="layer-head"><div class="layer-hair-front"></div><div class="face-features"><div class="sick-mark">💧</div><div class="angry-mark">💢</div><div class="dizzy-mark">🌀</div><div class="eyes-container"><div class="eye"><div class="pupil"></div><div class="sparkle-1"></div><div class="sparkle-2"></div><div class="dark-circle"></div></div><div class="eye"><div class="pupil"></div><div class="sparkle-1"></div><div class="sparkle-2"></div><div class="dark-circle"></div></div></div><div class="blush-container"><div class="blush"></div><div class="blush"></div></div><div class="nose"></div><div class="mouth"></div></div></div><div class="layer-body-group"><div class="body-core"><div class="layer-clothes c-uniform" id="wardrobe-clothes"></div><div class="layer-pants" id="wardrobe-pants"></div></div><div class="legs"><div class="leg"></div><div class="leg"></div></div></div>`;
+    }
+
+    function saveProfileAndGoCustom() {
+        const h = document.getElementById('height').value, w = document.getElementById('weight').value;
+        if(!h || !w) return alert("키와 몸무게를 정확히 입력하세요.");
+        ud.nickname = document.getElementById('nickname').value || '수험생'; ud.height = parseFloat(h); ud.weight = parseFloat(w);
+        ud.school = document.getElementById('school-type').value; ud.grade = document.getElementById('grade-tier').value;
+        ud.lastUpdate = Date.now();
+        syncToCharacterViewer(); navTo('custom-wardrobe');
+    }
+
+    // 대시보드 갱신
+    function updatePhysicalInfo() {
+        const h = document.getElementById('dash-update-height').value; const w = document.getElementById('dash-update-weight').value;
+        if(!h || !w) return alert("키와 몸무게를 모두 입력하세요.");
+        ud.height = parseFloat(h); ud.weight = parseFloat(w); ud.lastUpdate = Date.now();
+        alert("신체 정보가 성공적으로 갱신되었습니다!");
+        syncToCharacterViewer();
+    }
+
+    function syncToCharacterViewer() {
+        const bmi = ud.weight / ((ud.height/100)*(ud.height/100));
+        let scale = 1, statusStr = "", color = "", dietStr = "";
+        
+        // 5등급 판정 및 식단
+        if(bmi < 18.5) { scale = 0.8; statusStr = "저체중"; color = "#8be9fd"; dietStr = "고단백 육류 및 견과류 중심의 탄수화물 증량 식단"; }
+        else if(bmi < 23) { scale = 1.0; statusStr = "정상 체형"; color = "#50fa7b"; dietStr = "현미밥, 닭가슴살, 채소 위주의 완벽 밸런스 식단"; }
+        else if(bmi < 25) { scale = 1.25; statusStr = "과체중"; color = "#ffb86c"; dietStr = "밀가루/당류 절대 제한, 통곡물 위주의 저당 식단"; }
+        else { scale = 1.4; statusStr = "비만 체형"; color = "#ff5555"; dietStr = "야식 절대 금지, 샐러드 중심의 초저칼로리 식단"; }
+
+        document.documentElement.style.setProperty('--body-scale', scale); document.documentElement.style.setProperty('--hair-color', ud.hairColor);
+
+        ['res-bmi', 'dash-bmi'].forEach(id => { const el = document.getElementById(id); if(el) { el.innerText = `${statusStr} (BMI: ${bmi.toFixed(1)})`; el.style.color = color; } });
+        const dashDiet = document.getElementById('dash-diet'); if(dashDiet) dashDiet.innerText = dietStr;
+        const resDiet = document.getElementById('res-diet'); if(resDiet) resDiet.innerText = dietStr;
+
+        ['wardrobe-character-viewer', 'living-character-viewer'].forEach(id => {
+            const v = document.getElementById(id);
+            if(v) { 
+                v.innerHTML = generateCharacterBody(); v.className = `character-stage hair-${ud.hair}`; 
+                const c=v.querySelector('.layer-clothes'), p=v.querySelector('.layer-pants');
+                if(c&&p){ 
+                    c.className=`layer-clothes ${ud.clothes}`; 
+                    p.className=(['c-shortsleeve','c-casual','c-redbikini','c-croptop'].includes(ud.clothes)) ? `layer-pants ${ud.clothes}-pants` : `layer-pants`; 
+                }
+                const dk=v.querySelectorAll('.dark-circle'), sp=v.querySelectorAll('.sparkle-1,.sparkle-2'), mk=v.querySelectorAll('.angry-mark,.sick-mark,.dizzy-mark');
+                dk.forEach(e=>e.style.opacity='0'); sp.forEach(e=>e.style.display='none'); mk.forEach(e=>e.style.display='none');
+                if(ud.condition==='피곤') dk.forEach(e=>e.style.opacity='1'); else if(ud.condition==='빡침') v.querySelectorAll('.angry-mark').forEach(e=>e.style.display='block'); else if(ud.condition==='멘붕') v.querySelectorAll('.dizzy-mark').forEach(e=>e.style.display='block'); else sp.forEach(e=>e.style.display='block');
+            }
+        });
+
+        document.getElementById('set-name').innerText = ud.nickname; document.getElementById('live-user-title').innerText = `👑 ${ud.nickname}`;
+        document.getElementById('set-phys').innerText = `${ud.height}cm / ${ud.weight}kg`; document.getElementById('set-bmi').innerText = `BMI ${bmi.toFixed(1)}`;
+        syncGlobalWalletUI(); updateInventoryUI(); saveData();
+    }
+
+    // 뷰티샵 프리미엄 기능
+    function changeHairStyle(s) { if(ud.unlockedHairs.includes(s)) { ud.hair = s; syncToCharacterViewer(); } else alert("보유하지 않은 헤어입니다."); }
+    function changeHairColor(c) { if(ud.unlockedColors.includes(c)) { ud.hairColor = c; syncToCharacterViewer(); } else alert("보유하지 않은 색상입니다."); }
+    function equip(c) { if(ud.unlockedClothes.includes(c)) { ud.clothes = c; syncToCharacterViewer(); } else alert("보유하지 않은 의상입니다."); }
+
+    function buyFeature(type, id, name, price) {
+        let arr = []; if(type==='clothes') arr = ud.unlockedClothes; else if(type==='hair') arr = ud.unlockedHairs; else arr = ud.unlockedColors;
+        if(arr.includes(id)) {
+            if(type==='clothes') ud.clothes=id; else if(type==='hair') ud.hair=id; else ud.hairColor=id;
+            syncToCharacterViewer(); return alert("이미 보유한 항목을 장착했습니다.");
+        }
+        if(ud.coins < price) return alert("코인이 부족합니다.");
+        if(confirm(`${name}을(를) ${price}🪙에 구매하시겠습니까?`)) {
+            ud.coins -= price; arr.push(id);
+            if(type==='clothes') ud.clothes=id; else if(type==='hair') ud.hair=id; else ud.hairColor=id;
+            syncToCharacterViewer(); alert("구매 완료 및 즉시 장착!");
+        }
+    }
+
+    function updateInventoryUI() {
+        const grid = document.getElementById('inventory-grid'); if(!grid) return;
+        const dict = {'c-uniform':'교복','c-shortsleeve':'반팔','c-tracksuit':'추리닝','c-hoodie':'후드티','c-casual':'캐주얼','c-suit':'정장','c-cyber':'사이버','c-hanbok':'한복','c-redbikini':'비키니','c-pajamas':'파자마','c-croptop':'크롭티'};
+        grid.innerHTML = ''; ud.unlockedClothes.forEach(c => { const d=document.createElement('div'); d.className='item'; d.innerText=dict[c]||c; d.onclick=()=>equip(c); grid.appendChild(d); });
+    }
+
+    function drawRandomClothes() {
+        if(ud.coins < 100) return alert("100코인이 필요합니다.");
+        if(confirm("100코인으로 옷 랜덤 뽑기를 진행하시겠습니까? (중복 시 50코인 반환)")) {
+            ud.coins -= 100;
+            const pool = ['c-uniform','c-shortsleeve','c-tracksuit','c-hoodie','c-casual','c-suit','c-cyber','c-hanbok','c-redbikini','c-pajamas','c-croptop'];
+            const res = pool[Math.floor(Math.random()*pool.length)];
+            if(ud.unlockedClothes.includes(res)) { ud.coins += 50; alert("중복 의상입니다. 50코인 페이백!"); } 
+            else { ud.unlockedClothes.push(res); ud.clothes = res; alert("새로운 의상 당첨!"); }
+            syncToCharacterViewer();
+        }
+    }
+
+    // 설문 및 5등급제 팩트체크
+    function calculateSurveyAndGo() {
+        let sc=0, chk=true;
+        document.querySelectorAll('#condition-survey .question-block').forEach(b => { const s=b.querySelector('.chip.selected'); if(s) sc+=parseInt(s.getAttribute('data-score')); else chk=false; });
+        if(!chk) return alert("모든 질문에 답해주세요.");
+        ud.score = sc; ud.condition = sc>=40?"열공":sc>=20?"쌩쌩":sc>=0?"피곤":sc>=-20?"빡침":"멘붕";
+        
+        // 5등급 팩트체크
+        const schoolNames = { 'normal':'일반고', 'jasa':'자사고', 'foreign':'외고', 'special':'특성화고', 'meister':'마이스터고' };
+        const sType = schoolNames[ud.school] || "기타";
+        document.getElementById('res-aca-status').innerText = `${sType} / ${ud.grade}등급 대`;
+        
+        let fact = "";
+        const g = parseInt(ud.grade);
+        if(ud.school === 'normal') {
+            if(g===1) fact = "1등급(상위 10%)은 이제 많습니다. 교과만 믿지 말고 수능 최저를 빡세게 맞추며 세특을 채워야 생존합니다.";
+            else if(g===2) fact = "2등급(상위 34%)은 과거 3~4등급 수준입니다. 주요 인서울은 불안정하니 정시 대비를 반드시 병행하세요.";
+            else if(g===3) fact = "3등급(상위 66%)은 중위권입니다. 논술이나 정시 등 다른 전략을 진지하게 고민해야 합니다.";
+            else fact = "하위권입니다. 팩트를 받아들이고 목표를 재조정하거나 뼈를 깎는 수능 올인 전략이 필요합니다.";
+        } else {
+            if(g<=2) fact = "5등급제 하에서 특목/자사고 상위권은 서류 평가 시대의 지배자입니다. 현재 커리큘럼을 완벽히 소화하세요.";
+            else if(g===3) fact = "학교 안에서 밀렸지만 수준 높은 생기부로 중상위권 대학 커버가 가능합니다. 끝까지 포기하지 마세요.";
+            else fact = "내신 극복이 어렵다면 수능과 논술 전형에 집중적으로 에너지를 쏟아야 할 시점입니다.";
+        }
+        document.getElementById('res-aca-fact').innerText = fact;
+
+        syncToCharacterViewer(); navTo('analysis-report');
+    }
+
+    function prepareLivingRoomAndGo() { navTo('living-room'); }
+
+    function teleport() {
+        const loc = document.getElementById('location-select').value;
+        const bg = document.getElementById('bg-container');
+        const coord = { 'gym':'0% 0%', 'restaurant':'50% 0%', 'hospital':'100% 0%', 'home':'0% 100%', 'school':'50% 100%', 'studycafe':'100% 100%' };
+        bg.style.backgroundPosition = coord[loc];
+    }
+
+    // --- 스카 독한 치료 (O/X 및 금융 타이머 복구) ---
+    let studyStartTime="", studyEndTime="", awaySeconds=0, isAtStudyCafe=false, goalIdCounter=0;
+    
+    function saveTimeSettings() { studyStartTime=document.getElementById('time-start').value; studyEndTime=document.getElementById('time-end').value; alert("스터디 락다운 세팅 완료. 이탈 시 코인 차감."); }
+    function checkInStudyCafe() { isAtStudyCafe=true; document.getElementById('btn-in').style.display="none"; document.getElementById('btn-out').style.display="block"; document.getElementById('timer-display').style.display="none"; awaySeconds=0; }
+    function attemptCheckOut() {
+        const now=new Date(), curTime=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+        if(studyStartTime && studyEndTime && curTime >= studyStartTime && curTime <= studyEndTime) {
+            showExtremeWarning(`⚠️ <strong>락다운 탈주 경고</strong> ⚠️<br><br>지금 이탈하면 돈이 증발합니다. 나가시겠습니까?`, "아닙니다, 공부하겠습니다", "네, 깎아주세요.", () => { executeCheckOut(); });
+        } else { executeCheckOut(); }
+    }
+    function executeCheckOut() { isAtStudyCafe=false; document.getElementById('btn-in').style.display="block"; document.getElementById('btn-out').style.display="none"; }
+    
+    function addGoal() {
+        const inp = document.getElementById('goal-input'); const txt = inp.value.trim(); if(!txt) return alert("목표 태스크를 기술하세요.");
+        const li = document.createElement('li'); const id = goalIdCounter++; li.id = `goal-item-${id}`;
+        li.innerHTML = `<span style="font-size:13px; font-weight:bold;">${txt}</span><div><button style="background:#4CAF50; color:#fff; border:none; padding:8px 12px; border-radius:6px; font-weight:bold; cursor:pointer;" onclick="verifyGoalReward(${id}, '${txt}')">O</button><button style="background:#F44336; color:#fff; border:none; padding:8px 12px; border-radius:6px; font-weight:bold; cursor:pointer; margin-left:4px;" onclick="document.getElementById('goal-item-${id}').remove()">X</button></div>`;
+        document.getElementById('goal-list').appendChild(li); inp.value = "";
+    }
+    function verifyGoalReward(id, txt) {
+        showExtremeWarning(`🤔 <strong>목표 팩트체크</strong> 🤔<br><br>"<span style="color:#FFD700;">${txt}</span>"<br>진짜 다 했습니까? 구라치면 10배 차감.`, "아니요, 아직 덜 끝냈습니다.", "네, 완벽히 했습니다.", () => {
+            ud.coins += 50; syncGlobalWalletUI(); alert("보상 50코인 지급 완료! 🎉"); document.getElementById(`goal-item-${id}`).remove();
+        });
+    }
+
+    setInterval(() => {
+        if(!studyStartTime || !studyEndTime) return;
+        const now=new Date(), curTime=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+        const isLock=(curTime >= studyStartTime && curTime <= studyEndTime);
+        const tDisp=document.getElementById('timer-display');
+        if(isLock && !isAtStudyCafe) {
+            tDisp.style.display="block"; awaySeconds++; document.getElementById('time-count').innerText=awaySeconds;
+            if(awaySeconds>5) { 
+                ud.coins-=10; syncGlobalWalletUI(); awaySeconds=0; 
+                const pBox = document.getElementById('penalty-alert-box');
+                if(pBox) { pBox.style.display='block'; setTimeout(()=>pBox.style.display='none', 2000); }
+            }
+        } else { tDisp.style.display="none"; awaySeconds=0; }
+    }, 1000);
+
+    // --- 스퀘어 로직 ---
+    function switchCommTab(k) {
+        document.querySelectorAll('.comm-tab-btn').forEach(b=>b.classList.remove('active')); document.querySelectorAll('.comm-panel').forEach(p=>p.classList.remove('active'));
+        if(k==='free'){document.querySelectorAll('.comm-tab-btn')[0].classList.add('active');document.getElementById('comm-free').classList.add('active');}
+        else if(k==='school'){document.querySelectorAll('.comm-tab-btn')[1].classList.add('active');document.getElementById('comm-school').classList.add('active');}
+        else if(k==='exam'){document.querySelectorAll('.comm-tab-btn')[2].classList.add('active');document.getElementById('comm-exam').classList.add('active');}
+    }
+    let postCounter=0;
+    function addPost(b) {
+        const tx=document.getElementById(`input-${b}`), val=tx.value.trim(); if(!val) return;
+        if(["씨발","병신","지랄"].some(w=>val.includes(w))) return alert("⚠️ 비속어 적발.");
+        const isAnon = document.getElementById(`anon-${b}`) ? document.getElementById(`anon-${b}`).checked : true;
+        const feed=document.getElementById(`feed-${b}`), pId=postCounter++, item=document.createElement('div');
+        item.className='post-item'; item.innerHTML=`<div class="post-header"><span>${isAnon?"익명":ud.nickname}</span><span>방금 전</span></div><div style="font-size:13px; line-height:1.4;">${val}</div><div class="comment-section" id="comments-${pId}"></div><div class="comment-input-wrap"><input type="text" id="comment-input-${pId}" placeholder="댓글 달기..."><button onclick="addComment(${pId})">등록</button></div>`;
+        feed.insertBefore(item, feed.firstChild); tx.value="";
+    }
+    function addComment(pId) {
+        const inp=document.getElementById(`comment-input-${pId}`), val=inp.value.trim(); if(!val) return;
+        const sec=document.getElementById(`comments-${pId}`), cDiv=document.createElement('div');
+        cDiv.className='comment-item'; cDiv.innerHTML=`<strong>${ud.nickname}:</strong> ${val}`; sec.appendChild(cDiv); inp.value="";
+    }
+
+    async function searchSchoolAndRealMeal() {
+        const sName=document.getElementById('search-name').value.trim(); if(!sName) return;
+        const mBox=document.getElementById('live-meal-box'); mBox.style.display="block"; mBox.innerHTML="🚀 나이스 조회 중...";
+        try {
+            const sRes = await fetch(`https://open.neis.go.kr/hub/schoolInfo?Type=json&SCHUL_NM=${encodeURIComponent(sName)}`);
+            const sData = await sRes.json();
+            if(!sData.schoolInfo) { mBox.innerHTML="❌ 학교 검색 실패."; return; }
+            const oCode = sData.schoolInfo[1].row[0].ATPT_OFCDC_SC_CODE, sCode = sData.schoolInfo[1].row[0].SD_SCHUL_CODE;
+            const t = new Date(), ymd = `${t.getFullYear()}${String(t.getMonth()+1).padStart(2,'0')}${String(t.getDate()).padStart(2,'0')}`;
+            const mRes = await fetch(`https://open.neis.go.kr/hub/mealServiceDietInfo?Type=json&ATPT_OFCDC_SC_CODE=${oCode}&SD_SCHUL_CODE=${sCode}&MLSV_YMD=${ymd}`);
+            const mData = await mRes.json();
+            if(!mData.mealServiceDietInfo) { mBox.innerHTML = `🍱 <strong>${sName}</strong><br>오늘 급식 없음.`; } 
+            else {
+                let mHtml = "";
+                ["조식","중식","석식"].forEach(type => {
+                    const meal = mData.mealServiceDietInfo[1].row.find(m => m.MMEAL_SC_NM === type);
+                    if(meal) mHtml += `<strong style="color:#fff;">[${type}]</strong><br><span style="color:#E0FF95; font-size:12px;">${meal.DDISH_NM.replace(/[0-9\.]/g, '').replace(/<br\/>/g, ', ')}</span><br><br>`;
+                });
+                mBox.innerHTML = `🍱 <strong>${sName} 오늘의 식단</strong><br><div style="margin-top:6px;">${mHtml}</div>`;
+            }
+            document.getElementById('school-main-feed').style.display="block";
+        } catch(e) { mBox.innerHTML="❌ 통신 오류."; }
+    }
+</script>
+</body>
+</html>
